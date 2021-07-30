@@ -1,0 +1,32 @@
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.row {
+  display: flex;
+}
+.row:first-of-type {
+  border-top: 1px solid rgba(0, 0, 0, 1);
+}
+
+.row:last-of-type .col {
+  border-bottom: 1px solid rgba(0, 0, 0, 1);
+}
+
+.col {
+  width: 20px;
+  height: 20px;
+  border-right: 1px solid rgba(0, 0, 0, 0.075);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.075);
+}
+
+.col:first-of-type {
+  border-left: 1px solid rgba(0, 0, 0, 1);
+}
+
+.col:last-of-type {
+  border-right: 1px solid rgba(0, 0, 0, 1);
+}
