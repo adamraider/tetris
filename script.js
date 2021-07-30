@@ -1,11 +1,17 @@
 const gameEl = document.getElementById("root");
+const debugEl = document.getElementById("debug");
 
+const DEBUG = true;
+
+/**
+ * Constants
+ */
 const ROWS = 32;
 const COLS = 16;
 
 const Colors = {
   ACTIVE: "#FA4224",
-  EMPTY: "white",
+  EMPTY: "black",
 };
 
 const Values = {
@@ -13,6 +19,9 @@ const Values = {
   EMPTY: 0,
 };
 
+/**
+ * Pieces
+ */
 class Piece {
   constructor(positions, color) {
     this.positions = positions;
@@ -72,7 +81,7 @@ const Pieces = {
         [0, 3],
       ],
     ],
-    "#475F94"
+    "lightblue"
   ),
   L: new Piece(
     [
@@ -101,7 +110,7 @@ const Pieces = {
         [0, 2],
       ],
     ],
-    "#475F94"
+    "blue"
   ),
   REVERSE_L: new Piece(
     [
@@ -130,7 +139,7 @@ const Pieces = {
         [1, 2],
       ],
     ],
-    "#475F94"
+    "orange"
   ),
   ZOID: new Piece(
     [
@@ -159,10 +168,47 @@ const Pieces = {
         [2, 0],
       ],
     ],
-    "#475F94"
+    "purple"
+  ),
+  Z: new Piece(
+    [
+      [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 2],
+      ],
+      [
+        [0, 1],
+        [1, 1],
+        [1, 0],
+        [2, 0],
+      ],
+    ],
+    "red"
+  ),
+  REVERSE_Z: new Piece(
+    [
+      [
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 2],
+      ],
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [2, 1],
+      ],
+    ],
+    "green"
   ),
 };
 
+/**
+ * Util functions
+ */
 function makeEmptyBoard(
   rows,
   cols,
@@ -174,32 +220,24 @@ function makeEmptyBoard(
   return [...Array(rows)].map((_) => Array(cols).fill(defaultValue));
 }
 
+function getRandomPiece() {
+  const piecesKeys = Object.keys(Pieces);
+  return piecesKeys[Math.floor(Math.random() * piecesKeys.length)];
+}
+
+/**
+ * Game
+ */
 class Tetris {
   constructor() {
     this.bindEventListeners();
 
     this.board = makeEmptyBoard(ROWS, COLS);
     this.newPiece();
-
-    // this.board[10][8] = { value: Values.ACTIVE, color: Colors.ACTIVE };
-    this.board[ROWS - 1].fill({ value: Values.ACTIVE, color: Colors.ACTIVE });
-    this.board[ROWS - 2].fill({ value: Values.ACTIVE, color: Colors.ACTIVE });
-    this.board[ROWS - 3].fill({ value: Values.ACTIVE, color: Colors.ACTIVE });
-    this.board[ROWS - 1][0] = {
-      color: Colors.EMPTY,
-      value: Values.EMPTY,
-    };
-    this.board[ROWS - 2][0] = {
-      color: Colors.EMPTY,
-      value: Values.EMPTY,
-    };
-    this.board[ROWS - 3][0] = {
-      color: Colors.EMPTY,
-      value: Values.EMPTY,
-    };
     this.previousPos = [];
     this.initializeDom();
     this.interval = setInterval(this.tick.bind(this), 50);
+    this.points = 0;
   }
 
   start() {
@@ -212,43 +250,92 @@ class Tetris {
     this.interval = null;
   }
 
+  handleKeypress(e) {
+    if (DEBUG) console.log("[keypress]", e.key);
+    if (e.key === "ArrowRight" || e.key === "d") {
+      this.moveCurrentPieceRight();
+    } else if (e.key === "ArrowLeft" || e.key === "a") {
+      this.moveCurrentPieceLeft();
+    } else if (e.key === "ArrowDown" || e.key === "s") {
+      this.immediatelyPlaceCurrentPiece();
+    } else if (e.key === "g") {
+      this.rotateCurrentPiece();
+    } else if (e.key === "Control") {
+      this.togglePlayPause();
+    }
+  }
+
+  togglePlayPause() {
+    this.interval ? this.stop() : this.start();
+  }
+
+  immediatelyPlaceCurrentPiece() {
+    if (!this.currentPiece) return;
+    this.stop();
+    let offset = 0;
+    while (!this.checkCollision(/* colOffset= */ 0, /* rowOffset= */ offset)) {
+      offset++;
+    }
+    this.currentPiecePosition[0] += offset - 1;
+    this.draw();
+    this.start();
+  }
+
+  moveCurrentPieceLeft() {
+    if (!this.checkCollision(/* colOffset= */ -1)) {
+      this.currentPiecePosition[1]--;
+      this.draw();
+    }
+  }
+
+  moveCurrentPieceRight() {
+    if (!this.checkCollision(/* colOffset= */ 1)) {
+      this.currentPiecePosition[1]++;
+      this.draw();
+    }
+  }
+  rotateCurrentPiece() {
+    if (
+      !this.checkCollision(
+        /* colOffset= */ 0,
+        /* rowOffset= */ 0,
+        /* cells= */ this.currentPiece.nextRotationCells()
+      )
+    ) {
+    } else if (
+      !this.checkCollision(
+        /* colOffset= */ -1,
+        /* rowOffset= */ 0,
+        /* cells= */ this.currentPiece.nextRotationCells()
+      )
+    ) {
+      this.currentPiecePosition[1]--;
+    } else if (
+      !this.checkCollision(
+        /* colOffset= */ -2,
+        /* rowOffset= */ 0,
+        /* cells= */ this.currentPiece.nextRotationCells()
+      )
+    ) {
+      this.currentPiecePosition[1] = this.currentPiecePosition[1] - 2;
+    } else if (
+      !this.checkCollision(
+        /* colOffset= */ -3,
+        /* rowOffset= */ 0,
+        /* cells= */ this.currentPiece.nextRotationCells()
+      )
+    ) {
+      this.currentPiecePosition[1] = this.currentPiecePosition[1] - 3;
+    } else {
+      // can't rotate?
+      return;
+    }
+    this.currentPiece.rotateRight();
+    this.draw();
+  }
+
   bindEventListeners() {
-    window.addEventListener("keydown", (e) => {
-      console.log(e);
-      if (e.key === "ArrowRight") {
-        if (!this.checkCollision(1)) {
-          this.currentPiecePosition[1]++;
-          this.draw();
-        }
-      } else if (e.key === "ArrowLeft") {
-        if (!this.checkCollision(-1)) {
-          this.currentPiecePosition[1]--;
-          this.draw();
-        }
-      } else if (e.key === "g") {
-        if (!this.checkCollision(0, this.currentPiece.nextRotationCells())) {
-        } else if (
-          !this.checkCollision(-1, this.currentPiece.nextRotationCells())
-        ) {
-          this.currentPiecePosition[1]--;
-        } else if (
-          !this.checkCollision(-2, this.currentPiece.nextRotationCells())
-        ) {
-          this.currentPiecePosition[1] = this.currentPiecePosition[1] - 2;
-        } else if (
-          !this.checkCollision(-3, this.currentPiece.nextRotationCells())
-        ) {
-          this.currentPiecePosition[1] = this.currentPiecePosition[1] - 3;
-        } else {
-          // can't rotate?
-          return;
-        }
-        this.currentPiece.rotateRight();
-        this.draw();
-      } else if (e.key === "Control") {
-        this.interval ? this.stop() : this.start();
-      }
-    });
+    window.addEventListener("keydown", this.handleKeypress.bind(this));
   }
 
   initializeDom() {
@@ -259,8 +346,8 @@ class Tetris {
             let color = col.color;
             if (
               this.currentPiece.getCells().some((cell) => {
-                const [x, y] = this.currentPiecePosition;
-                return rowIndex === x + cell[0] && colIndex === y + cell[1];
+                const [row, col] = this.currentPiecePosition;
+                return rowIndex === row + cell[0] && colIndex === col + cell[1];
               })
             ) {
               this.previousPos.push([rowIndex, colIndex]);
@@ -275,21 +362,29 @@ class Tetris {
   }
 
   draw() {
-    this.previousPos.forEach(([x, y]) => {
-      const el = gameEl.children[x].children[y];
-      el.style.backgroundColor = Colors.EMPTY;
+    this.previousPos.forEach(([row, col]) => {
+      this.updateCell({ row, col, color: Colors.EMPTY });
     });
 
     this.previousPos = [];
 
     this.currentPiece.getCells().forEach((cell) => {
-      const [x, y] = this.currentPiecePosition;
-      const newX = x + cell[0];
-      const newY = y + cell[1];
-      const el = gameEl.children[newX].children[newY];
-      this.previousPos.push([newX, newY]);
-      el.style.backgroundColor = this.currentPiece.color;
+      const [row, col] = this.currentPiecePosition;
+      const newRow = row + cell[0];
+      const newCol = col + cell[1];
+      this.previousPos.push([newRow, newCol]);
+      this.updateCell({
+        row: newRow,
+        col: newCol,
+        color: this.currentPiece.color,
+      });
     });
+  }
+
+  updateCell({ row, col, color }) {
+    if (DEBUG) console.log("[cell update]", row, col);
+    const el = gameEl.children[row].children[col];
+    el.style.backgroundColor = color;
   }
 
   tick() {
@@ -299,6 +394,10 @@ class Tetris {
       this.currentPiecePosition[0]--;
       this.stop();
       this.burnPiece();
+      if (this.checkLoseCondition()) {
+        this.endGame();
+        return;
+      }
       this.previousPos = [];
       this.newPiece();
       this.resolveRows();
@@ -309,12 +408,23 @@ class Tetris {
     this.draw();
   }
 
+  endGame() {
+    if (DEBUG) console.log("GAME OVER");
+    this.stop();
+  }
+
+  checkLoseCondition() {
+    // If any square is filled in top row, game is over. In future "hide" this row.
+    return this.board[0].some((cell) => cell.value !== Values.EMPTY);
+  }
+
   resolveRows() {
-    this.board.forEach((row, rowIndex) => {
-      if (row.every((cell) => cell.value === Values.ACTIVE)) {
-        for (let i = rowIndex - 1; i >= 0; i--) {
-          for (let c = 0; c < COLS; c++) {
-            this.board[i + 1][c] = { ...this.board[i][c] };
+    this.board.forEach((rowArr, rowIndex) => {
+      if (rowArr.every((cell) => cell.value === Values.ACTIVE)) {
+        this.points++;
+        for (let row = rowIndex - 1; row >= 0; row--) {
+          for (let col = 0; col < COLS; col++) {
+            this.board[row + 1][col] = { ...this.board[row][col] };
           }
         }
         this.initializeDom();
@@ -346,21 +456,22 @@ class Tetris {
     this.currentPiece = Pieces[getRandomPiece()];
   }
 
-  checkCollision(offset = 0, cells = this.currentPiece.getCells()) {
+  checkCollision(
+    colOffset = 0,
+    rowOffset = 0,
+    cells = this.currentPiece.getCells()
+  ) {
     return cells.some((cell) => {
       const [x, y] = this.currentPiecePosition;
       return (
-        typeof this.board[x + cell[0]] === "undefined" ||
-        typeof this.board[x + cell[0]][offset + y + cell[1]] === "undefined" ||
-        this.board[x + cell[0]][offset + y + cell[1]].value != Values.EMPTY
+        typeof this.board[rowOffset + x + cell[0]] === "undefined" ||
+        typeof this.board[rowOffset + x + cell[0]][colOffset + y + cell[1]] ===
+          "undefined" ||
+        this.board[rowOffset + x + cell[0]][colOffset + y + cell[1]].value !=
+          Values.EMPTY
       );
     });
   }
-}
-
-function getRandomPiece() {
-  const piecesKeys = Object.keys(Pieces);
-  return piecesKeys[Math.floor(Math.random() * piecesKeys.length)];
 }
 
 const game = new Tetris();
