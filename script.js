@@ -239,6 +239,7 @@ class Tetris {
 
     this.board = makeEmptyBoard(ROWS, COLS);
     this.currentPiecePositions = [];
+    this.currentPiecePendingFinalPositions = [];
     this.points = 0;
     this.gameIsOver = false;
 
@@ -249,7 +250,7 @@ class Tetris {
 
   start() {
     if (this.interval) return;
-    this.interval = setInterval(this.tick.bind(this), 10);
+    this.interval = setInterval(this.tick.bind(this), 500);
   }
 
   stop() {
@@ -278,14 +279,21 @@ class Tetris {
     this.interval ? this.stop() : this.start();
   }
 
-  immediatelyPlaceCurrentPiece() {
-    if (!this.currentPiece) return;
-    this.stop();
+  getCurrentPieceFinalOriginOffset() {
     let offset = 0;
+
     while (!this.checkCollision(/* colOffset= */ 0, /* rowOffset= */ offset)) {
       offset++;
     }
-    this.currentPieceOrigin[0] += offset - 1;
+
+    // Collision was detected so we have to backtrack.
+    return offset - 1;
+  }
+
+  immediatelyPlaceCurrentPiece() {
+    if (!this.currentPiece) return;
+    this.stop();
+    this.currentPieceOrigin[0] += this.getCurrentPieceFinalOriginOffset();
     this.draw();
     this.start();
   }
@@ -376,6 +384,25 @@ class Tetris {
       this.updateCell({ row, col, color: Colors.EMPTY });
     }
 
+    while (this.currentPiecePendingFinalPositions.length > 0) {
+      const [row, col] = this.currentPiecePendingFinalPositions.pop();
+      if (this.board[row][col].value !== Values.EMPTY) continue;
+      this.updateCell({ row, col, color: Colors.EMPTY });
+    }
+
+    const finalRowOffset = this.getCurrentPieceFinalOriginOffset();
+    this.currentPiece.getCells().forEach(([cellRow, cellCol]) => {
+      const [row, col] = this.currentPieceOrigin;
+      const newRow = row + cellRow + finalRowOffset;
+      const newCol = col + cellCol;
+      this.currentPiecePendingFinalPositions.push([newRow, newCol]);
+      this.updateCell({
+        row: newRow,
+        col: newCol,
+        color: "white",
+      });
+    });
+
     this.currentPiece.getCells().forEach((cell) => {
       const [row, col] = this.currentPieceOrigin;
       const newRow = row + cell[0];
@@ -403,10 +430,12 @@ class Tetris {
       this.currentPieceOrigin[0]--;
       this.stop();
       this.burnPiece();
+
       if (this.checkLoseCondition()) {
         this.endGame();
         return;
       }
+
       this.currentPiecePositions = [];
       this.newPiece();
       this.resolveRows();
