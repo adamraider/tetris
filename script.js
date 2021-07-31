@@ -144,7 +144,7 @@ const Pieces = {
     ],
     "orange"
   ),
-  ZOID: new Piece(
+  PYRAMID: new Piece(
     [
       [
         [0, 1],
@@ -153,10 +153,10 @@ const Pieces = {
         [1, 2],
       ],
       [
-        [0, 1],
-        [1, 1],
+        [0, 0],
         [1, 0],
-        [2, 1],
+        [1, 1],
+        [2, 0],
       ],
       [
         [0, 0],
@@ -165,10 +165,10 @@ const Pieces = {
         [1, 1],
       ],
       [
-        [0, 0],
+        [0, 1],
         [1, 0],
         [1, 1],
-        [2, 0],
+        [2, 1],
       ],
     ],
     "purple"
@@ -256,7 +256,7 @@ class Tetris {
 
   start() {
     if (this.interval) return;
-    this.interval = setInterval(this.tick.bind(this), 200);
+    this.interval = setInterval(this.tick.bind(this), DEBUG ? 1000 : 200);
   }
 
   stop() {
