@@ -50,6 +50,10 @@ class Piece {
   nextRotationCells() {
     return this.positions[this.nextRotationIndex()];
   }
+
+  rotateToRandomPosition() {
+    this.positionIndex = Math.floor(Math.random() * this.positions.length);
+  }
 }
 
 const Pieces = {
@@ -497,6 +501,7 @@ class Tetris {
     ];
     // TODO: Randomly assign rotation.
     this.currentPiece = Pieces[getRandomPiece()];
+    this.currentPiece.rotateToRandomPosition();
   }
 
   checkCollision(
