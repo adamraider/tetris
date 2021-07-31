@@ -238,6 +238,7 @@ class Tetris {
     this.initializeDom();
     this.interval = setInterval(this.tick.bind(this), 50);
     this.points = 0;
+    this.gameIsOver = false;
   }
 
   start() {
@@ -251,6 +252,7 @@ class Tetris {
   }
 
   handleKeypress(e) {
+    if (this.gameIsOver) return;
     if (DEBUG) console.log("[keypress]", e.key);
     if (e.key === "ArrowRight" || e.key === "d") {
       this.moveCurrentPieceRight();
@@ -410,6 +412,7 @@ class Tetris {
 
   endGame() {
     if (DEBUG) console.log("GAME OVER");
+    this.gameIsOver = true;
     this.stop();
   }
 
