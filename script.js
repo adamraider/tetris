@@ -256,7 +256,7 @@ class Tetris {
 
   start() {
     if (this.interval) return;
-    this.interval = setInterval(this.tick.bind(this), 500);
+    this.interval = setInterval(this.tick.bind(this), 200);
   }
 
   stop() {
