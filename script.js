@@ -1,7 +1,7 @@
 const gameEl = document.getElementById("root");
 const debugEl = document.getElementById("debug");
 
-const DEBUG = true;
+const DEBUG = false;
 
 /**
  * Constants
@@ -38,19 +38,17 @@ class Piece {
   }
 
   rotateRight() {
-    this.positionIndex = this.nextPositionIndex();
+    this.positionIndex = this.nextRotationIndex();
   }
 
-  nextPositionIndex() {
-    if (this.positionIndex === this.positions.length - 1) {
-      return 0;
-    } else {
-      return this.positionIndex + 1;
-    }
+  nextRotationIndex() {
+    return this.positionIndex === this.positions.length - 1
+      ? 0
+      : this.positionIndex + 1;
   }
 
   nextRotationCells() {
-    return this.positions[this.nextPositionIndex()];
+    return this.positions[this.nextRotationIndex()];
   }
 }
 
@@ -220,6 +218,13 @@ function makeEmptyBoard(
   return [...Array(rows)].map((_) => Array(cols).fill(defaultValue));
 }
 
+function makeActiveCell(color) {
+  return {
+    color,
+    value: Values.ACTIVE,
+  };
+}
+
 function getRandomPiece() {
   const piecesKeys = Object.keys(Pieces);
   return piecesKeys[Math.floor(Math.random() * piecesKeys.length)];
@@ -233,17 +238,18 @@ class Tetris {
     this.bindEventListeners();
 
     this.board = makeEmptyBoard(ROWS, COLS);
-    this.newPiece();
-    this.previousPos = [];
-    this.initializeDom();
-    this.interval = setInterval(this.tick.bind(this), 50);
+    this.currentPiecePositions = [];
     this.points = 0;
     this.gameIsOver = false;
+
+    this.newPiece();
+    this.initializeDom();
+    this.start();
   }
 
   start() {
     if (this.interval) return;
-    this.interval = setInterval(this.tick.bind(this), 50);
+    this.interval = setInterval(this.tick.bind(this), 10);
   }
 
   stop() {
@@ -252,8 +258,9 @@ class Tetris {
   }
 
   handleKeypress(e) {
-    if (this.gameIsOver) return;
     if (DEBUG) console.log("[keypress]", e.key);
+    if (this.gameIsOver) return;
+
     if (e.key === "ArrowRight" || e.key === "d") {
       this.moveCurrentPieceRight();
     } else if (e.key === "ArrowLeft" || e.key === "a") {
@@ -278,21 +285,21 @@ class Tetris {
     while (!this.checkCollision(/* colOffset= */ 0, /* rowOffset= */ offset)) {
       offset++;
     }
-    this.currentPiecePosition[0] += offset - 1;
+    this.currentPieceOrigin[0] += offset - 1;
     this.draw();
     this.start();
   }
 
   moveCurrentPieceLeft() {
     if (!this.checkCollision(/* colOffset= */ -1)) {
-      this.currentPiecePosition[1]--;
+      this.currentPieceOrigin[1]--;
       this.draw();
     }
   }
 
   moveCurrentPieceRight() {
     if (!this.checkCollision(/* colOffset= */ 1)) {
-      this.currentPiecePosition[1]++;
+      this.currentPieceOrigin[1]++;
       this.draw();
     }
   }
@@ -311,7 +318,7 @@ class Tetris {
         /* cells= */ this.currentPiece.nextRotationCells()
       )
     ) {
-      this.currentPiecePosition[1]--;
+      this.currentPieceOrigin[1]--;
     } else if (
       !this.checkCollision(
         /* colOffset= */ -2,
@@ -319,7 +326,7 @@ class Tetris {
         /* cells= */ this.currentPiece.nextRotationCells()
       )
     ) {
-      this.currentPiecePosition[1] = this.currentPiecePosition[1] - 2;
+      this.currentPieceOrigin[1] = this.currentPieceOrigin[1] - 2;
     } else if (
       !this.checkCollision(
         /* colOffset= */ -3,
@@ -327,9 +334,9 @@ class Tetris {
         /* cells= */ this.currentPiece.nextRotationCells()
       )
     ) {
-      this.currentPiecePosition[1] = this.currentPiecePosition[1] - 3;
+      this.currentPieceOrigin[1] = this.currentPieceOrigin[1] - 3;
     } else {
-      // can't rotate?
+      // Can't rotate?
       return;
     }
     this.currentPiece.rotateRight();
@@ -348,11 +355,11 @@ class Tetris {
             let color = col.color;
             if (
               this.currentPiece.getCells().some((cell) => {
-                const [row, col] = this.currentPiecePosition;
+                const [row, col] = this.currentPieceOrigin;
                 return rowIndex === row + cell[0] && colIndex === col + cell[1];
               })
             ) {
-              this.previousPos.push([rowIndex, colIndex]);
+              this.currentPiecePositions.push([rowIndex, colIndex]);
               color = this.currentPiece.color;
             }
 
@@ -364,17 +371,17 @@ class Tetris {
   }
 
   draw() {
-    this.previousPos.forEach(([row, col]) => {
+    while (this.currentPiecePositions.length > 0) {
+      const [row, col] = this.currentPiecePositions.pop();
       this.updateCell({ row, col, color: Colors.EMPTY });
-    });
-
-    this.previousPos = [];
+    }
 
     this.currentPiece.getCells().forEach((cell) => {
-      const [row, col] = this.currentPiecePosition;
+      const [row, col] = this.currentPieceOrigin;
       const newRow = row + cell[0];
       const newCol = col + cell[1];
-      this.previousPos.push([newRow, newCol]);
+      this.currentPiecePositions.push([newRow, newCol]);
+
       this.updateCell({
         row: newRow,
         col: newCol,
@@ -390,17 +397,17 @@ class Tetris {
   }
 
   tick() {
-    this.currentPiecePosition[0]++;
+    this.currentPieceOrigin[0]++;
 
     if (this.checkCollision()) {
-      this.currentPiecePosition[0]--;
+      this.currentPieceOrigin[0]--;
       this.stop();
       this.burnPiece();
       if (this.checkLoseCondition()) {
         this.endGame();
         return;
       }
-      this.previousPos = [];
+      this.currentPiecePositions = [];
       this.newPiece();
       this.resolveRows();
       this.start();
@@ -422,14 +429,16 @@ class Tetris {
   }
 
   resolveRows() {
-    this.board.forEach((rowArr, rowIndex) => {
-      if (rowArr.every((cell) => cell.value === Values.ACTIVE)) {
+    this.board.forEach((rowEl, rowIndex) => {
+      if (rowEl.every((cell) => cell.value === Values.ACTIVE)) {
         this.points++;
+
         for (let row = rowIndex - 1; row >= 0; row--) {
           for (let col = 0; col < COLS; col++) {
             this.board[row + 1][col] = { ...this.board[row][col] };
           }
         }
+
         this.initializeDom();
       }
     });
@@ -437,25 +446,27 @@ class Tetris {
 
   burnPiece() {
     this.currentPiece.getCells().forEach((cell) => {
-      this.board[this.currentPiecePosition[0] + cell[0]][
-        this.currentPiecePosition[1] + cell[1]
-      ] = {
+      const [cellRow, cellCol] = cell;
+      const [pieceOriginRow, pieceOriginCol] = this.currentPieceOrigin;
+
+      this.board[pieceOriginRow + cellRow][pieceOriginCol + cellCol] =
+        makeActiveCell(this.currentPiece.color);
+
+      this.updateCell({
+        row: pieceOriginRow + cellRow,
+        col: pieceOriginCol + cellCol,
         color: this.currentPiece.color,
-        value: Values.ACTIVE,
-      };
-      const el =
-        gameEl.children[this.currentPiecePosition[0] + cell[0]].children[
-          this.currentPiecePosition[1] + cell[1]
-        ];
-      el.style.backgroundColor = this.currentPiece.color;
+      });
     });
   }
 
   newPiece() {
-    this.currentPiecePosition = [
+    // Randomly assign starting position.
+    this.currentPieceOrigin = [
       0,
       Math.min(Math.max(1, Math.floor(Math.random() * COLS)), COLS - 4),
     ];
+    // TODO: Randomly assign rotation.
     this.currentPiece = Pieces[getRandomPiece()];
   }
 
@@ -465,13 +476,15 @@ class Tetris {
     cells = this.currentPiece.getCells()
   ) {
     return cells.some((cell) => {
-      const [x, y] = this.currentPiecePosition;
+      const [row, col] = this.currentPieceOrigin;
+
       return (
-        typeof this.board[rowOffset + x + cell[0]] === "undefined" ||
-        typeof this.board[rowOffset + x + cell[0]][colOffset + y + cell[1]] ===
-          "undefined" ||
-        this.board[rowOffset + x + cell[0]][colOffset + y + cell[1]].value !=
-          Values.EMPTY
+        typeof this.board[rowOffset + row + cell[0]] === "undefined" ||
+        typeof this.board[rowOffset + row + cell[0]][
+          colOffset + col + cell[1]
+        ] === "undefined" ||
+        this.board[rowOffset + row + cell[0]][colOffset + col + cell[1]]
+          .value != Values.EMPTY
       );
     });
   }
