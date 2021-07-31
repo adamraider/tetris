@@ -1,6 +1,5 @@
 body {
   display: flex;
-  align-items: center;
   justify-content: center;
   background-color: rgba(0, 0, 0, 0.2);
 }
@@ -29,4 +28,13 @@ body {
 
 .col:last-of-type {
   border-right: 1px solid rgba(0, 0, 0, 1);
+}
+
+#preview {
+  margin-left: 1rem;
+}
+
+#preview .col,
+#preview .row {
+  border-color: rgba(0, 0, 0, 0.2);
 }

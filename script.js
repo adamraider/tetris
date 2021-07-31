@@ -1,4 +1,5 @@
 const gameEl = document.getElementById("root");
+const previewEl = document.getElementById("preview");
 const debugEl = document.getElementById("debug");
 
 const DEBUG = false;
@@ -246,7 +247,8 @@ class Tetris {
     this.currentPiecePendingFinalPositions = [];
     this.points = 0;
     this.gameIsOver = false;
-
+    this.nextPiece = Pieces[getRandomPiece()];
+    this.nextPiece.rotateToRandomPosition();
     this.newPiece();
     this.initializeDom();
     this.start();
@@ -441,10 +443,9 @@ class Tetris {
       }
 
       this.currentPiecePositions = [];
-      this.newPiece();
       this.resolveRows();
+      this.newPiece();
       this.start();
-      return;
     }
 
     this.draw();
@@ -494,14 +495,30 @@ class Tetris {
   }
 
   newPiece() {
+    this.currentPiece = this.nextPiece;
+
     // Randomly assign starting position.
     this.currentPieceOrigin = [
       0,
       Math.min(Math.max(1, Math.floor(Math.random() * COLS)), COLS - 4),
     ];
     // TODO: Randomly assign rotation.
-    this.currentPiece = Pieces[getRandomPiece()];
-    this.currentPiece.rotateToRandomPosition();
+    this.nextPiece = Pieces[getRandomPiece()];
+    this.nextPiece.rotateToRandomPosition();
+    this.drawNextPiece();
+  }
+
+  drawNextPiece() {
+    Array.from(previewEl.children).forEach((rowEl) => {
+      Array.from(rowEl.children).forEach((colEl) => {
+        colEl.style.backgroundColor = "transparent";
+      });
+    });
+
+    this.nextPiece.getCells().forEach(([row, col]) => {
+      previewEl.children[row].children[col].style.backgroundColor =
+        this.nextPiece.color;
+    });
   }
 
   checkCollision(
