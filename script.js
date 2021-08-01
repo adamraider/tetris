@@ -1,18 +1,31 @@
 const gameEl = document.getElementById("root");
 const previewEl = document.getElementById("preview");
 const debugEl = document.getElementById("debug");
+const pauseBtn = document.getElementById("pause");
 
 const DEBUG = false;
 
 /**
  * Constants
  */
-const ROWS = 32;
-const COLS = 16;
+const ROWS = 17;
+const COLS = 10;
 
 const Colors = {
   ACTIVE: "#FA4224",
   EMPTY: "black",
+  RED: "#ef476f",
+  YELLOW: "#ffd166",
+  GREEN: "#06d6a0",
+  LIGHT_BLUE: "#118ab2",
+  DARK_BLUE: "#073b4c",
+  PURPLE: "purple",
+  ORANGE: "orange",
+};
+
+const Classes = {
+  PENDING: "col--pending",
+  CELL_BASE_CLASS: "col",
 };
 
 const Values = {
@@ -67,7 +80,7 @@ const Pieces = {
         [1, 0],
       ],
     ],
-    "#FDDC5C"
+    Colors.YELLOW
   ),
   LINE: new Piece(
     [
@@ -84,7 +97,7 @@ const Pieces = {
         [0, 3],
       ],
     ],
-    "lightblue"
+    Colors.LIGHT_BLUE
   ),
   L: new Piece(
     [
@@ -113,7 +126,7 @@ const Pieces = {
         [1, 2],
       ],
     ],
-    "blue"
+    Colors.DARK_BLUE
   ),
   REVERSE_L: new Piece(
     [
@@ -142,7 +155,7 @@ const Pieces = {
         [1, 2],
       ],
     ],
-    "orange"
+    Colors.ORANGE
   ),
   PYRAMID: new Piece(
     [
@@ -171,7 +184,7 @@ const Pieces = {
         [2, 1],
       ],
     ],
-    "purple"
+    Colors.PURPLE
   ),
   Z: new Piece(
     [
@@ -188,7 +201,7 @@ const Pieces = {
         [2, 0],
       ],
     ],
-    "red"
+    Colors.RED
   ),
   REVERSE_Z: new Piece(
     [
@@ -205,7 +218,7 @@ const Pieces = {
         [2, 1],
       ],
     ],
-    "green"
+    Colors.GREEN
   ),
 };
 
@@ -257,11 +270,13 @@ class Tetris {
   start() {
     if (this.interval) return;
     this.interval = setInterval(this.tick.bind(this), DEBUG ? 1000 : 200);
+    pauseBtn.innerText = "Pause";
   }
 
   stop() {
     clearTimeout(this.interval);
     this.interval = null;
+    pauseBtn.innerText = "Play";
   }
 
   handleKeypress(e) {
@@ -359,12 +374,15 @@ class Tetris {
 
   bindEventListeners() {
     window.addEventListener("keydown", this.handleKeypress.bind(this));
+    pauseBtn.addEventListener("click", () => {
+      this.togglePlayPause();
+    });
   }
 
   initializeDom() {
     gameEl.innerHTML = this.board
       .map((row, rowIndex) => {
-        return `<div class="row">${row
+        return `<tr class="row">${row
           .map((col, colIndex) => {
             let color = col.color;
             if (
@@ -377,9 +395,9 @@ class Tetris {
               color = this.currentPiece.color;
             }
 
-            return `<div class="col" style="background-color: ${color};"></div>`;
+            return `<td class="col" style="background-color: ${color};"></td>`;
           })
-          .join("")}</div>`;
+          .join("")}</tr>`;
       })
       .join("");
   }
@@ -393,7 +411,11 @@ class Tetris {
     while (this.currentPiecePendingFinalPositions.length > 0) {
       const [row, col] = this.currentPiecePendingFinalPositions.pop();
       if (this.board[row][col].value !== Values.EMPTY) continue;
-      this.updateCell({ row, col, color: Colors.EMPTY });
+      this.updateCell({
+        row,
+        col,
+        color: Colors.EMPTY,
+      });
     }
 
     const finalRowOffset = this.getCurrentPieceFinalOriginOffset();
@@ -405,7 +427,9 @@ class Tetris {
       this.updateCell({
         row: newRow,
         col: newCol,
-        color: "white",
+        color: this.currentPiece.color,
+
+        className: Classes.PENDING,
       });
     });
 
@@ -423,10 +447,11 @@ class Tetris {
     });
   }
 
-  updateCell({ row, col, color }) {
+  updateCell({ row, col, color, className = "" }) {
     if (DEBUG) console.log("[cell update]", row, col);
     const el = gameEl.children[row].children[col];
     el.style.backgroundColor = color;
+    el.className = Classes.CELL_BASE_CLASS + " " + className;
   }
 
   tick() {
