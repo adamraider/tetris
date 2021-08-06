@@ -3,13 +3,15 @@ const previewEl = document.getElementById("preview");
 const debugEl = document.getElementById("debug");
 const pauseBtn = document.getElementById("pause");
 
-const DEBUG = false;
+const DEBUG = true;
 
 /**
  * Constants
  */
 const ROWS = 17;
 const COLS = 10;
+
+const GAME_TICK_MS = 500;
 
 const Colors = {
   ACTIVE: "#FA4224",
@@ -31,6 +33,11 @@ const Classes = {
 const Values = {
   ACTIVE: 1,
   EMPTY: 0,
+};
+
+const EMPTY_CELL = {
+  color: Colors.EMPTY,
+  value: Values.EMPTY,
 };
 
 /**
@@ -225,14 +232,7 @@ const Pieces = {
 /**
  * Util functions
  */
-function makeEmptyBoard(
-  rows,
-  cols,
-  defaultValue = {
-    color: Colors.EMPTY,
-    value: Values.EMPTY,
-  }
-) {
+function makeEmptyBoard(rows, cols, defaultValue = EMPTY_CELL) {
   return [...Array(rows)].map((_) => Array(cols).fill(defaultValue));
 }
 
@@ -262,6 +262,9 @@ class Tetris {
     this.gameIsOver = false;
     this.nextPiece = Pieces[getRandomPiece()];
     this.nextPiece.rotateToRandomPosition();
+
+    this.board[ROWS - 1].fill({ value: 1, color: "orange" });
+
     this.newPiece();
     this.initializeDom();
     this.start();
@@ -269,7 +272,10 @@ class Tetris {
 
   start() {
     if (this.interval) return;
-    this.interval = setInterval(this.tick.bind(this), DEBUG ? 1000 : 200);
+    this.interval = setInterval(
+      this.tick.bind(this),
+      DEBUG ? GAME_TICK_MS : 200
+    );
     pauseBtn.innerText = "Pause";
   }
 
@@ -428,7 +434,6 @@ class Tetris {
         row: newRow,
         col: newCol,
         color: this.currentPiece.color,
-
         className: Classes.PENDING,
       });
     });
@@ -469,9 +474,12 @@ class Tetris {
 
       this.currentPiecePositions = [];
       this.resolveRows();
+      this.currentPiecePositions = [];
       this.newPiece();
       this.start();
     }
+
+    if (DEBUG) this.drawDebug();
 
     this.draw();
   }
@@ -480,6 +488,18 @@ class Tetris {
     if (DEBUG) console.log("GAME OVER");
     this.gameIsOver = true;
     this.stop();
+  }
+
+  drawDebug() {
+    debugEl.innerHTML = `<table>${this.board
+      .map((row) => {
+        return `<tr>${row
+          .map((cell) => {
+            return `<td>${cell.value}</td>`;
+          })
+          .join("")}</tr>`;
+      })
+      .join("")}</table>`;
   }
 
   checkLoseCondition() {
@@ -492,15 +512,11 @@ class Tetris {
       if (rowEl.every((cell) => cell.value === Values.ACTIVE)) {
         this.points++;
 
-        for (let row = rowIndex - 1; row >= 0; row--) {
-          for (let col = 0; col < COLS; col++) {
-            this.board[row + 1][col] = { ...this.board[row][col] };
-          }
-        }
-
-        this.initializeDom();
+        this.board.splice(rowIndex, 1);
+        this.board.unshift(Array(COLS).fill(EMPTY_CELL));
       }
     });
+    this.initializeDom();
   }
 
   burnPiece() {
