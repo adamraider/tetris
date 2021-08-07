@@ -35,12 +35,12 @@ table {
 
 #preview {
   margin-left: 1rem;
-  display: none;
 }
 
 #preview .col,
 #preview .row {
   border-color: rgba(0, 0, 0, 0.2);
+  display: flex;
 }
 
 #pause {
