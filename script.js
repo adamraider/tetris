@@ -3,7 +3,7 @@ const previewEl = document.getElementById("preview");
 const debugEl = document.getElementById("debug");
 const pauseBtn = document.getElementById("pause");
 
-const DEBUG = true;
+const DEBUG = !!getQueryParams().debug;
 
 /**
  * Constants
@@ -248,6 +248,16 @@ function getRandomPiece() {
   return piecesKeys[Math.floor(Math.random() * piecesKeys.length)];
 }
 
+function getQueryParams() {
+  const query = location.href.split("?")[1];
+  if (!query) return {};
+  return query.split("&").reduce((acc, current) => {
+    const [key, value] = current.split("=");
+    acc[key] = value;
+    return acc;
+  }, {});
+}
+
 /**
  * Game
  */
@@ -263,7 +273,8 @@ class Tetris {
     this.nextPiece = Pieces[getRandomPiece()];
     this.nextPiece.rotateToRandomPosition();
 
-    this.board[ROWS - 1].fill({ value: 1, color: "orange" });
+    // Uncomment to test resolving a row.
+    // this.board[ROWS - 1].fill({ value: 1, color: "orange" });
 
     this.newPiece();
     this.initializeDom();
